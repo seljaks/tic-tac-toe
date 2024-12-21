@@ -1,35 +1,47 @@
 use std::{fmt::Display, io};
 
 #[derive(Debug)]
+enum Player {
+    X,
+    O,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Tile {
+    X,
+    O,
+    EMPTY,
+}
+
+#[derive(Debug)]
 struct Game {
-    board: [u8; 9],
+    board: [Tile; 9],
     moves: [&'static str; 9],
-    active_player: u8,
+    active_player: Player,
 }
 
 impl Game {
     fn new() -> Self {
         Game {
-            board: [0; 9],
+            board: [Tile::EMPTY; 9],
             moves: ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
-            active_player: 0,
+            active_player: Player::X,
         }
     }
     fn get_possible_moves(&self) -> Vec<&str> {
         self.board
             .iter()
             .zip(self.moves)
-            .filter(|(value, _)| **value == 0)
+            .filter(|(value, _)| matches!(**value, Tile::EMPTY))
             .map(|(_, c)| c)
             .collect()
     }
-}
-
-fn num_to_str(int_val: u8) -> &'static str {
-    match int_val {
-        10 => "x",
-        20 => "o",
-        _ => unreachable!(),
+    fn is_over(&self) -> bool {
+        if all(self.moves % 3) == Tile::X {
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -39,12 +51,10 @@ impl Display for Game {
             .board
             .iter()
             .zip(self.moves)
-            .map(|(value, index)| {
-                if *value == 0 {
-                    index
-                } else {
-                    num_to_str(*value)
-                }
+            .map(|(value, index)| match *value {
+                Tile::EMPTY => index,
+                Tile::X => "x",
+                Tile::O => "o",
             })
             .collect();
         write!(
@@ -81,9 +91,8 @@ fn main() {
             break input;
         };
         let x_or_o = match game.active_player {
-            0 => 10,
-            1 => 20,
-            _ => unreachable!(),
+            Player::X => Tile::X,
+            Player::O => Tile::O,
         };
         match input.trim() {
             "1" => game.board[0] = x_or_o,
@@ -97,10 +106,13 @@ fn main() {
             "9" => game.board[8] = x_or_o,
             _ => unreachable!(),
         };
+        if game.is_over() {
+            println!("Player {:?} won!", { game.active_player });
+            break;
+        }
         game.active_player = match game.active_player {
-            0 => 1,
-            1 => 0,
-            _ => unreachable!(),
+            Player::X => Player::O,
+            Player::O => Player::X,
         };
     }
     //println!("Game is over! Final position: {}", &game);
