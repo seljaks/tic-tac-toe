@@ -1,5 +1,7 @@
 use std::{fmt::Display, io};
 
+const MOVES: [&'static str; 9] = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
 #[derive(Debug)]
 enum Player {
     X,
@@ -16,7 +18,7 @@ enum Tile {
 #[derive(Debug)]
 struct Game {
     board: [Tile; 9],
-    moves: [&'static str; 9],
+    moves: [usize; 9],
     active_player: Player,
 }
 
@@ -24,7 +26,7 @@ impl Game {
     fn new() -> Self {
         Game {
             board: [Tile::EMPTY; 9],
-            moves: ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
+            moves: [0, 1, 2, 3, 4, 5, 6, 7, 8],
             active_player: Player::X,
         }
     }
@@ -33,14 +35,36 @@ impl Game {
             .iter()
             .zip(self.moves)
             .filter(|(value, _)| matches!(**value, Tile::EMPTY))
-            .map(|(_, c)| c)
+            .map(|(_, c)| MOVES[c])
             .collect()
     }
     fn is_over(&self) -> bool {
-        if all(self.moves % 3) == Tile::X {
-            true
-        } else {
-            false
+        self.is_win_x() | self.is_win_o()
+    }
+    fn is_win_x(&self) -> bool {
+        match self.board {
+            [Tile::X, Tile::X, Tile::X, _, _, _, _, _, _] => true,
+            [_, _, _, _, _, _, Tile::X, Tile::X, Tile::X] => true,
+            [_, _, _, Tile::X, Tile::X, Tile::X, _, _, _] => true,
+            [Tile::X, _, _, Tile::X, _, _, Tile::X, _, _] => true,
+            [_, Tile::X, _, _, Tile::X, _, _, Tile::X, _] => true,
+            [_, _, Tile::X, _, _, Tile::X, _, _, Tile::X] => true,
+            [Tile::X, _, _, _, Tile::X, _, _, _, Tile::X] => true,
+            [_, _, Tile::X, _, Tile::X, _, Tile::X, _, _] => true,
+            _ => false,
+        }
+    }
+    fn is_win_o(&self) -> bool {
+        match self.board {
+            [Tile::O, Tile::O, Tile::O, _, _, _, _, _, _] => true,
+            [_, _, _, _, _, _, Tile::O, Tile::O, Tile::O] => true,
+            [_, _, _, Tile::O, Tile::O, Tile::O, _, _, _] => true,
+            [Tile::O, _, _, Tile::O, _, _, Tile::O, _, _] => true,
+            [_, Tile::O, _, _, Tile::O, _, _, Tile::O, _] => true,
+            [_, _, Tile::O, _, _, Tile::O, _, _, Tile::O] => true,
+            [Tile::O, _, _, _, Tile::O, _, _, _, Tile::O] => true,
+            [_, _, Tile::O, _, Tile::O, _, Tile::O, _, _] => true,
+            _ => false,
         }
     }
 }
@@ -52,7 +76,7 @@ impl Display for Game {
             .iter()
             .zip(self.moves)
             .map(|(value, index)| match *value {
-                Tile::EMPTY => index,
+                Tile::EMPTY => MOVES[index],
                 Tile::X => "x",
                 Tile::O => "o",
             })
@@ -106,14 +130,16 @@ fn main() {
             "9" => game.board[8] = x_or_o,
             _ => unreachable!(),
         };
-        if game.is_over() {
-            println!("Player {:?} won!", { game.active_player });
+        if !game.is_over() {
+            game.active_player = match game.active_player {
+                Player::X => Player::O,
+                Player::O => Player::X,
+            };
+        } else {
+            println!("Player {:?} won!", &game.active_player);
+            println!("Final position: {}", &game);
             break;
         }
-        game.active_player = match game.active_player {
-            Player::X => Player::O,
-            Player::O => Player::X,
-        };
     }
     //println!("Game is over! Final position: {}", &game);
 }
