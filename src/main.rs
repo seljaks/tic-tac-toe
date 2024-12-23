@@ -39,7 +39,7 @@ impl Game {
             .collect()
     }
     fn is_over(&self) -> bool {
-        self.is_win_x() | self.is_win_o()
+        self.is_win_x() | self.is_win_o() | self.is_draw()
     }
     fn is_win_x(&self) -> bool {
         match self.board {
@@ -65,6 +65,13 @@ impl Game {
             [Tile::O, _, _, _, Tile::O, _, _, _, Tile::O] => true,
             [_, _, Tile::O, _, Tile::O, _, Tile::O, _, _] => true,
             _ => false,
+        }
+    }
+    fn is_draw(&self) -> bool {
+        if self.get_possible_moves().is_empty() {
+            true
+        } else {
+            false
         }
     }
 }
@@ -130,15 +137,22 @@ fn main() {
             "9" => game.board[8] = x_or_o,
             _ => unreachable!(),
         };
-        if !game.is_over() {
+        if game.is_draw() {
+            println!("Game is a draw!");
+            break;
+        } else if game.is_win_x() {
+            println!("Player {:?} won!", Player::X);
+            println!("Final position: {}", &game);
+            break;
+        } else if game.is_win_o() {
+            println!("Player {:?} won!", Player::O);
+            println!("Final position: {}", &game);
+            break;
+        } else {
             game.active_player = match game.active_player {
                 Player::X => Player::O,
                 Player::O => Player::X,
-            };
-        } else {
-            println!("Player {:?} won!", &game.active_player);
-            println!("Final position: {}", &game);
-            break;
+            }
         }
     }
     //println!("Game is over! Final position: {}", &game);
