@@ -26,7 +26,6 @@ enum GameState {
 #[derive(Debug)]
 struct Game {
     board: [Tile; 9],
-    moves: [usize; 9],
     active_player: Player,
     state: GameState,
 }
@@ -35,17 +34,24 @@ impl Game {
     fn new() -> Self {
         Game {
             board: [Tile::EMPTY; 9],
-            moves: [0, 1, 2, 3, 4, 5, 6, 7, 8],
             active_player: Player::O,
             state: GameState::Ongoing,
         }
     }
-    fn get_possible_moves(&self) -> Vec<&str> {
+    fn get_available_moves(&self) -> Vec<&str> {
         self.board
             .iter()
-            .zip(self.moves)
-            .filter(|(value, _)| matches!(**value, Tile::EMPTY))
-            .map(|(_, c)| MOVES[c])
+            .enumerate()
+            .filter(|(_, val)| matches!(val, Tile::EMPTY))
+            .map(|(i, _)| MOVES[i])
+            .collect()
+    }
+    fn _get_moves(&self) -> Vec<usize> {
+        self.board
+            .iter()
+            .enumerate()
+            .filter(|(_, val)| matches!(val, Tile::EMPTY))
+            .map(|(i, _)| i)
             .collect()
     }
     fn update_state(&mut self) -> () {
@@ -84,7 +90,7 @@ impl Game {
     }
     fn get_user_input(&mut self) -> () {
         println!("{}", self);
-        let possible_moves = &self.get_possible_moves();
+        let possible_moves = &self.get_available_moves();
         println!("Possible moves: {:?}", possible_moves);
         let input = loop {
             let mut input = String::new();
@@ -115,6 +121,11 @@ impl Game {
         };
     }
     fn get_best_move(&self) -> usize {
+        let win = match self.active_player {
+            Player::X => GameState::WinX,
+            Player::O => GameState::WinO,
+        };
+
         0
     }
     fn is_over(&self) -> bool {
@@ -150,7 +161,7 @@ impl Game {
         }
     }
     fn is_draw(&self) -> bool {
-        if self.get_possible_moves().is_empty() {
+        if self.get_available_moves().is_empty() {
             true
         } else {
             false
@@ -163,8 +174,8 @@ impl Display for Game {
         let display_vals: Vec<&str> = self
             .board
             .iter()
-            .zip(self.moves)
-            .map(|(value, index)| match *value {
+            .enumerate()
+            .map(|(index, value)| match *value {
                 Tile::EMPTY => MOVES[index],
                 Tile::X => "x",
                 Tile::O => "o",
