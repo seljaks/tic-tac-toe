@@ -1,8 +1,8 @@
-use std::{fmt::Display, io};
+use std::{cmp, fmt::Display, io};
 
 const MOVES: [&'static str; 9] = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 enum Player {
     X,
     O,
@@ -15,7 +15,7 @@ enum Tile {
     EMPTY,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum GameState {
     Ongoing,
     Draw,
@@ -23,7 +23,7 @@ enum GameState {
     WinO,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Game {
     board: [Tile; 9],
     active_player: Player,
@@ -120,14 +120,6 @@ impl Game {
             _ => unreachable!(),
         };
     }
-    fn get_best_move(&self) -> usize {
-        let win = match self.active_player {
-            Player::X => GameState::WinX,
-            Player::O => GameState::WinO,
-        };
-
-        0
-    }
     fn is_over(&self) -> bool {
         matches!(
             self.state,
@@ -169,6 +161,75 @@ impl Game {
     }
 }
 
+fn find_best_move(game: &mut Game, player: Player) -> isize {
+    game.update_state();
+    dbg!(&game);
+    if game.is_over() {
+        match game.active_player {
+            Player::X => {
+                if game.is_win_x() {
+                    100
+                } else if game.is_win_o() {
+                    -100
+                } else if game.is_draw() {
+                    0
+                } else {
+                    unreachable!()
+                }
+            }
+            Player::O => {
+                if game.is_win_o() {
+                    100
+                } else if game.is_win_x() {
+                    -100
+                } else if game.is_draw() {
+                    0
+                } else {
+                    unreachable!()
+                }
+            }
+        }
+    } else {
+        if game.active_player == player {
+            let mut value = -1000;
+            for move_idx in game._get_moves().iter() {
+                let x_or_o = match player {
+                    Player::X => Tile::X,
+                    Player::O => Tile::O,
+                };
+                let mut current_game = game.clone();
+                current_game.board[*move_idx] = x_or_o;
+                let player = match game.active_player {
+                    Player::X => Player::O,
+                    Player::O => Player::X,
+                };
+                current_game.active_player = player;
+                value = cmp::max(value, find_best_move(&mut current_game, player));
+            }
+            value
+        } else if game.active_player != player {
+            let mut value = 1000;
+            for move_idx in game._get_moves().iter() {
+                let x_or_o = match player {
+                    Player::X => Tile::X,
+                    Player::O => Tile::O,
+                };
+                let mut current_game = game.clone();
+                current_game.board[*move_idx] = x_or_o;
+                let player = match game.active_player {
+                    Player::X => Player::O,
+                    Player::O => Player::X,
+                };
+                current_game.active_player = player;
+                value = cmp::min(value, find_best_move(&mut current_game, player));
+            }
+            value
+        } else {
+            unreachable!()
+        }
+    }
+}
+
 impl Display for Game {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let display_vals: Vec<&str> = self
@@ -204,4 +265,28 @@ fn main() {
         game.update_state();
     }
     game.check_state();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // o x x
+    // x x o
+    // o o x
+    #[test]
+    fn best_move_one_before_win() {
+        let mut game = Game::new();
+        game.board[0] = Tile::O;
+        game.board[1] = Tile::X;
+        game.board[2] = Tile::X;
+        game.board[3] = Tile::X;
+        game.board[4] = Tile::X;
+        game.board[5] = Tile::O;
+        game.board[6] = Tile::O;
+        game.active_player = Player::X;
+        let player = game.active_player.clone();
+        let val = find_best_move(&mut game, player);
+        assert_eq!(val, 100);
+    }
 }
