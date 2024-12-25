@@ -1,4 +1,4 @@
-use std::{cmp, fmt::Display, io};
+use std::{cmp, fmt::Display, io, usize};
 
 const MOVES: [&'static str; 9] = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
@@ -27,15 +27,13 @@ enum GameState {
 struct Game {
     board: [Tile; 9],
     active_player: Player,
-    state: GameState,
 }
 
 impl Game {
     fn new() -> Self {
         Game {
             board: [Tile::EMPTY; 9],
-            active_player: Player::O,
-            state: GameState::Ongoing,
+            active_player: Player::X,
         }
     }
     fn get_available_moves(&self) -> Vec<&str> {
@@ -54,8 +52,8 @@ impl Game {
             .map(|(i, _)| i)
             .collect()
     }
-    fn update_state(&mut self) -> () {
-        self.state = if self.is_win_x() {
+    fn get_state(&self) -> GameState {
+        if self.is_win_x() {
             GameState::WinX
         } else if self.is_win_o() {
             GameState::WinO
@@ -65,8 +63,8 @@ impl Game {
             GameState::Ongoing
         }
     }
-    fn check_state(&mut self) -> () {
-        match self.state {
+    fn play_turn(&mut self) -> () {
+        match self.get_state() {
             GameState::WinX => {
                 println!("Player using x won!");
                 println!("Final board: {}", &self);
@@ -80,23 +78,27 @@ impl Game {
                 println!("Final board: {}", &self)
             }
             GameState::Ongoing => {
-                self.active_player = match self.active_player {
-                    Player::X => Player::O,
-                    Player::O => Player::X,
-                };
-                self.get_user_input();
+                let (position, tile) = self.get_user_input();
+                self.play_tile(position, tile);
+                self.switch_player();
             }
         }
     }
-    fn get_user_input(&mut self) -> () {
+    fn switch_player(&mut self) -> () {
+        self.active_player = match self.active_player {
+            Player::X => Player::O,
+            Player::O => Player::X,
+        };
+    }
+    fn get_user_input(&self) -> (usize, Tile) {
         println!("{}", self);
         let possible_moves = &self.get_available_moves();
         println!("Possible moves: {:?}", possible_moves);
-        let input = loop {
+        let position = loop {
             let mut input = String::new();
             let _ = io::stdin().read_line(&mut input);
-            let input = if possible_moves.contains(&input.trim()) {
-                input
+            let input: usize = if possible_moves.contains(&input.trim()) {
+                input.trim().parse().unwrap()
             } else {
                 println!("Not a correct entry, try again!");
                 continue;
@@ -107,22 +109,18 @@ impl Game {
             Player::X => Tile::X,
             Player::O => Tile::O,
         };
-        match input.trim() {
-            "1" => self.board[0] = x_or_o,
-            "2" => self.board[1] = x_or_o,
-            "3" => self.board[2] = x_or_o,
-            "4" => self.board[3] = x_or_o,
-            "5" => self.board[4] = x_or_o,
-            "6" => self.board[5] = x_or_o,
-            "7" => self.board[6] = x_or_o,
-            "8" => self.board[7] = x_or_o,
-            "9" => self.board[8] = x_or_o,
+        (position, x_or_o)
+    }
+
+    fn play_tile(&mut self, position: usize, tile: Tile) -> () {
+        match position {
+            1..=9 => self.board[position - 1] = tile,
             _ => unreachable!(),
         };
     }
     fn is_over(&self) -> bool {
         matches!(
-            self.state,
+            self.get_state(),
             GameState::Draw | GameState::WinX | GameState::WinO
         )
     }
@@ -161,8 +159,13 @@ impl Game {
     }
 }
 
+fn generate_game_tree() -> Vec<Vec<Game>> {
+    let new_game = Game::new();
+    vec![vec![new_game]]
+}
+
 fn find_best_move(game: &mut Game, player: Player) -> isize {
-    game.update_state();
+    game.get_state();
     dbg!(&game);
     if game.is_over() {
         match game.active_player {
@@ -261,10 +264,9 @@ impl Display for Game {
 fn main() {
     let mut game = Game::new();
     while !game.is_over() {
-        game.check_state();
-        game.update_state();
+        game.play_turn();
     }
-    game.check_state();
+    game.play_turn();
 }
 
 #[cfg(test)]
