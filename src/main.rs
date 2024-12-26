@@ -1,4 +1,4 @@
-use std::{cmp, fmt::Display, io, usize};
+use std::{cmp, fmt::Display, io, mem, usize};
 
 const MOVES: [&'static str; 9] = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
@@ -26,14 +26,14 @@ enum GameState {
 #[derive(Debug, Clone)]
 struct Game {
     board: [Tile; 9],
-    active_player: Player,
+    next_player: Player,
 }
 
 impl Game {
     fn new() -> Self {
         Game {
             board: [Tile::EMPTY; 9],
-            active_player: Player::X,
+            next_player: Player::X,
         }
     }
     fn get_available_moves(&self) -> Vec<&str> {
@@ -44,12 +44,12 @@ impl Game {
             .map(|(i, _)| MOVES[i])
             .collect()
     }
-    fn _get_moves(&self) -> Vec<usize> {
+    fn get_moves(&self) -> Vec<usize> {
         self.board
             .iter()
             .enumerate()
             .filter(|(_, val)| matches!(val, Tile::EMPTY))
-            .map(|(i, _)| i)
+            .map(|(i, _)| i + 1)
             .collect()
     }
     fn get_state(&self) -> GameState {
@@ -85,7 +85,7 @@ impl Game {
         }
     }
     fn switch_player(&mut self) -> () {
-        self.active_player = match self.active_player {
+        self.next_player = match self.next_player {
             Player::X => Player::O,
             Player::O => Player::X,
         };
@@ -105,7 +105,7 @@ impl Game {
             };
             break input;
         };
-        let x_or_o = match self.active_player {
+        let x_or_o = match self.next_player {
             Player::X => Tile::X,
             Player::O => Tile::O,
         };
@@ -159,16 +159,37 @@ impl Game {
     }
 }
 
+// [
+// [new]
+// [topleft, topmid, topright, ...]
+// []
+// ]
 fn generate_game_tree() -> Vec<Vec<Game>> {
-    let new_game = Game::new();
-    vec![vec![new_game]]
+    let mut game_tree = vec![vec![Game::new()]];
+    for i in 1..=9 {
+        let mut possible_games = vec![];
+        for game in &game_tree[i - 1] {
+            for possible_position in game.get_moves() {
+                let mut new_game = game.clone();
+                let tile = match new_game.next_player {
+                    Player::X => Tile::X,
+                    Player::O => Tile::O,
+                };
+                new_game.play_tile(possible_position, tile);
+                new_game.switch_player();
+                possible_games.push(new_game);
+            }
+        }
+        game_tree.push(possible_games);
+    }
+    game_tree
 }
 
 fn find_best_move(game: &mut Game, player: Player) -> isize {
     game.get_state();
     dbg!(&game);
     if game.is_over() {
-        match game.active_player {
+        match game.next_player {
             Player::X => {
                 if game.is_win_x() {
                     100
@@ -193,37 +214,37 @@ fn find_best_move(game: &mut Game, player: Player) -> isize {
             }
         }
     } else {
-        if game.active_player == player {
+        if game.next_player == player {
             let mut value = -1000;
-            for move_idx in game._get_moves().iter() {
+            for move_idx in game.get_moves().iter() {
                 let x_or_o = match player {
                     Player::X => Tile::X,
                     Player::O => Tile::O,
                 };
                 let mut current_game = game.clone();
                 current_game.board[*move_idx] = x_or_o;
-                let player = match game.active_player {
+                let player = match game.next_player {
                     Player::X => Player::O,
                     Player::O => Player::X,
                 };
-                current_game.active_player = player;
+                current_game.next_player = player;
                 value = cmp::max(value, find_best_move(&mut current_game, player));
             }
             value
-        } else if game.active_player != player {
+        } else if game.next_player != player {
             let mut value = 1000;
-            for move_idx in game._get_moves().iter() {
+            for move_idx in game.get_moves().iter() {
                 let x_or_o = match player {
                     Player::X => Tile::X,
                     Player::O => Tile::O,
                 };
                 let mut current_game = game.clone();
                 current_game.board[*move_idx] = x_or_o;
-                let player = match game.active_player {
+                let player = match game.next_player {
                     Player::X => Player::O,
                     Player::O => Player::X,
                 };
-                current_game.active_player = player;
+                current_game.next_player = player;
                 value = cmp::min(value, find_best_move(&mut current_game, player));
             }
             value
@@ -262,11 +283,22 @@ impl Display for Game {
 }
 
 fn main() {
-    let mut game = Game::new();
-    while !game.is_over() {
-        game.play_turn();
-    }
-    game.play_turn();
+    // let mut game = Game::new();
+    // while !game.is_over() {
+    //     game.play_turn();
+    // }
+    // game.play_turn();
+    let t = generate_game_tree();
+    dbg!(&t.len());
+    dbg!(&t[0].len());
+    dbg!(&t[1].len());
+    println!("size of t {}", mem::size_of_val(&t));
+    let total: Vec<usize> = t.iter().map(|l| l.len()).collect();
+    dbg!(&total);
+    let tot: usize = total.iter().sum();
+    dbg!(tot);
+    println!("{}", &t[8][0]);
+    println!("{}", &t[9][0]);
 }
 
 #[cfg(test)]
@@ -286,8 +318,8 @@ mod tests {
         game.board[4] = Tile::X;
         game.board[5] = Tile::O;
         game.board[6] = Tile::O;
-        game.active_player = Player::X;
-        let player = game.active_player.clone();
+        game.next_player = Player::X;
+        let player = game.next_player.clone();
         let val = find_best_move(&mut game, player);
         assert_eq!(val, 100);
     }
